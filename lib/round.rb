@@ -18,3 +18,12 @@ class Board
     end
   end
 end
+
+class Piece
+  attr_accessor :type, :status
+
+  def initialize type
+    @type = type
+    @status = :nor
+  end
+end
