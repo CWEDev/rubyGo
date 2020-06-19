@@ -1,7 +1,7 @@
 require "pry"
 
-require "./draw.rb"
-require "./ai.rb"
+require "./draw"
+require "./ai"
 
 class Board
   include DrawMethods
@@ -17,3 +17,4 @@ class Board
       end
     end
   end
+end
