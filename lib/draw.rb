@@ -1,25 +1,22 @@
 module DrawMethods
 
-  # The constants below store unicode for board components.
+  # Re-design all of this to be much cleaner!
 
   THK_V = "\u2506"
-  # THN_V = "\u23D0"
   THN_V = "\u2027"
   THK_H = "\u2500"
   THN_H = " "
 
-  @@v_ln = THN_V
-  @h_ln = THN_H
   BLK = {:nor => "\u25EF", :cap => "\u25CC", :sel => "\u235C"}
   WHT = {:nor => "\u25CF", :cap => "\u2205", :sel => "\u2741"}
-  TER = {:blk => "\u2335", :wht => "\u2340", :sel => "\u256C"}
+  TER = {:blk => "\u2335", :wht => "\u2340", :sel => "\u256C", :nor => "\u2629"} # :nor = temp star point
 
   TOP = {:l => "\u250C", :m => "\u252C", :r => "\u2510"}
-  @@mid = {:l => "\u251C", :m => @@v_ln, :r => "\u2524"}
+  MID = {:l => "\u251C", :m => "\u2027", :r => "\u2524"}
   BTM = {:l => "\u2514", :m => "\u2534", :r => "\u2518"}
 
   E_TOP = {:l => "\u250F", :m => "\u2501", :r => "\u2513"}
-  @@e_mid = {:l => "\u2503", :m => " ", :r => "\u2503"}
+  E_MID = {:l => "\u2503", :m => " ", :r => "\u2503"}
   E_BTM = {:l => "\u2517", :m => "\u2501", :r => "\u251B"}
 
   H_LN = " "
@@ -28,11 +25,6 @@ module DrawMethods
     input.each_index do |i|
       puts input[i]
     end
-  end
-
-  def board_type(h, v)
-    @@h_ln = h
-    @@v_ln = v
   end
 
   def draw_board board
@@ -45,24 +37,34 @@ module DrawMethods
     end
     output[0] += E_TOP[:r]
 
-    output[1] = "#{@@e_mid[:l]}     "
+    output[1] = "#{E_MID[:l]}     "
     for col in 1..board.length do
       if col.odd?
         output[1] += "#{col}" + " " * (4 - col.to_s.length)
       end
     end
-    output[1] += " #{@@e_mid[:r]}"
+    output[1] += " #{E_MID[:r]}"
 
-    output[2] = @@e_mid[:l]
-    (board.length * 2 + 8).times do
-      output[2] += @@e_mid[:m]
+    output[2] = "#{E_MID[:l]}     "
+    for col in 1..board.length do
+      if col.odd?
+        output[2] += "\u2575 "
+      else
+        output[2] += "  "
+      end
     end
-    output[2] += @@e_mid[:r]
+
+    output[2] += "   #{E_MID[:r]}"
 
     board.each_with_index do |row, y|
       line = y + 3
 
-      output[line] = "#{@@e_mid[:l]} #{(y + 65).chr}   "
+      output[line] = "#{E_MID[:l]} #{(y + 65).chr}"
+      if y.even?
+        output[line] += " - "
+      else
+        output[line] += "   "
+      end
 
       row.each_with_index do |pos, x|
         if pos.nil?
@@ -71,7 +73,7 @@ module DrawMethods
           elsif y == size
             y_code = BTM
           else
-            y_code = @@mid
+            y_code = MID
           end
           if x == 0
             x_code = :l
@@ -92,16 +94,14 @@ module DrawMethods
           end
         end
       end
-      output[line] += "    #{@@e_mid[:r]}"
+      output[line] += "    #{E_MID[:r]}"
     end
 
-    output.push(@@e_mid[:l])
+    output.push(E_MID[:l])
     (board.length * 2 + 8).times do
-      output[-1] += @@e_mid[:m]
+      output[-1] += E_MID[:m]
     end
-    output[-1] += @@e_mid[:r]
-
-    output.push(output[-1])
+    output[-1] += E_MID[:r]
 
     output.push(E_BTM[:l])
     (board.length * 2 + 8).times do
