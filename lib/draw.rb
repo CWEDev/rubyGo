@@ -7,14 +7,17 @@ module DrawMethods
   THK_H = "\u2500"
   THN_H = " "
 
+  # Needs re-think asside from BLK & WHT :nor
   BLK = {:nor => "\u25EF", :cap => "\u25CC", :sel => "\u235C"}
   WHT = {:nor => "\u25CF", :cap => "\u2205", :sel => "\u2741"}
   TER = {:blk => "\u2335", :wht => "\u2340", :sel => "\u256C", :nor => "\u2629"} # :nor = temp star point
 
+  # Inner Board
   TOP = {:l => "\u250C", :m => "\u252C", :r => "\u2510"}
   MID = {:l => "\u251C", :m => "\u2027", :r => "\u2524"}
   BTM = {:l => "\u2514", :m => "\u2534", :r => "\u2518"}
 
+  # Outer Board
   E_TOP = {:l => "\u250F", :m => "\u2501", :r => "\u2513"}
   E_MID = {:l => "\u2503", :m => " ", :r => "\u2503"}
   E_BTM = {:l => "\u2517", :m => "\u2501", :r => "\u251B"}
@@ -67,7 +70,7 @@ module DrawMethods
       end
 
       row.each_with_index do |pos, x|
-        if pos.nil?
+        if pos.type == :empty
           if y == 0
             y_code = TOP
           elsif y == size

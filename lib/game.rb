@@ -4,16 +4,16 @@ require "./draw"
 require "./round"
 
 testing = Board.new
-test_piece_b = Piece.new(DrawMethods::BLK)
-test_piece_w = Piece.new(DrawMethods::WHT)
+test_piece_b = Space.new(DrawMethods::BLK)
+test_piece_w = Space.new(DrawMethods::WHT)
 test_board = testing.build_board(19)
-test_points = Piece.new(DrawMethods::TER)
+test_points = Space.new(DrawMethods::TER)
 
-5.times do
+50.times do
     test_board[Random.rand(18)][Random.rand(18)] = test_piece_w
 end
 
-5.times do
+50.times do
     test_board[Random.rand(18)][Random.rand(18)] = test_piece_b
 end
 
