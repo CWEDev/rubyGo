@@ -2,14 +2,22 @@ module DrawMethods
 
   # The constants below store unicode for board components.
 
+  THK_V = "\u2506"
+  # THN_V = "\u23D0"
+  THN_V = "\u2027"
+  THK_H = "\u2500"
+  THN_H = " "
+
+  @@v_ln = THN_V
+  @h_ln = THN_H
   BLK = {:nor => "\u25EF", :cap => "\u25CC", :sel => "\u235C"}
   WHT = {:nor => "\u25CF", :cap => "\u2205", :sel => "\u2741"}
   TER = {:blk => "\u2335", :wht => "\u2340", :sel => "\u256C"}
+
   TOP = {:l => "\u250C", :m => "\u252C", :r => "\u2510"}
-  MID = {:l => "\u251C", :m => "\u253C", :r => "\u2524"}
+  @@mid = {:l => "\u251C", :m => @@v_ln, :r => "\u2524"}
   BTM = {:l => "\u2514", :m => "\u2534", :r => "\u2518"}
-  H_LN = " \u2500 "
-  V_LN = "\u23D0"
+  H_LN = " "
 
   def prints input
     input.each_index do |i|
@@ -17,16 +25,20 @@ module DrawMethods
     end
   end
 
+  def board_type(h, v)
+    @@h_ln = h
+    @@v_ln = v
+  end
+
   def draw_board board
     output = []
     size = board.length - 1
 
     board.each_with_index do |row, y|
-      line = y * 2
+      line = y
       gap = line + 1
 
       output[line] = ""
-      output[gap] = "" unless y == size
 
       row.each_with_index do |pos, x|
         if pos.nil?
@@ -35,7 +47,7 @@ module DrawMethods
           elsif y == size
             y_code = BTM
           else
-            y_code = MID
+            y_code = @@mid
           end
           if x == 0
             x_code = :l
@@ -48,10 +60,12 @@ module DrawMethods
         else
           output[line] += pos.type[pos.status]
         end
-        output[line] += H_LN unless x == size
-        unless y == size
-          output[gap] += V_LN
-          output[gap] += "   " unless x == size
+        unless x == size
+          if y == 0 || y == size
+            output[line] += THK_H
+          else
+            output[line] += THN_H
+          end
         end
       end
     end
