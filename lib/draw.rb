@@ -87,7 +87,7 @@ module DrawMethods
           end
           output[line] += y_code[x_code]
         else
-          output[line] += pos.type[pos.status]
+          output[line] += pos.type[:nor]
         end
         unless x == size
           if y == 0 || y == size
