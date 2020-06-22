@@ -54,45 +54,76 @@ class Board
     @assigned.push(space)
     group.members.push(space)
 
-    NEIGHBORS.each do |neighbor| # Spaces above, below, left, and right of the current space.
-      x = neighbor[0] + space.x
-      y = neighbor[1] + space.y
+    each_neighbor(space) do |neighbor|
+      if neighbor.type == space.type # Then it's part of our group
+        unless @assigned.include?(neighbor)
+          grouper_crawler(neighbor, group)
+        end
+
+      elsif !group.boarder_mems.include?(neighbor) # Then it's part of our group's boarder.
+        group.boarder_mems.push(neighbor)
+
+        # Does the boarder space have a group,
+        # and is that group not yet in our group's boarder_grps?
+        if neighbor.group && !group.boarder_grps.include?(neighbor.group)
+          group.boarder_grps.push(neighbor.group)
+        end
+      end
+    end
+  end
+
+  def each_neighbor space
+    NEIGHBORS.each do |shift|
+      x = shift[0] + space.x
+      y = shift[1] + space.y
 
       if x >= 0 && y >= 0 && x < @size && y < @size # Then it's on the board
-        check_space = @board[y][x]
-
-        if check_space.type == space.type # Then it's part of our group
-          unless @assigned.include?(check_space)
-            grouper_crawler(check_space, group)
-          end
-
-        elsif !group.boarder_mems.include?(check_space) # Then it's part of our group's boarder.
-          group.boarder_mems.push(check_space)
-
-          # Does the boarder space have a group,
-          # and is that group not yet in our group's boarder_grps?
-          if check_space.group && !group.boarder_grps.include?(check_space.group)
-            group.boarder_grps.push(check_space.group)
-          end
-        end
+        neighbor = @board[y][x]
+        yield neighbor
       end
     end
   end
 
   def add_piece (space, type)
     return nil unless space.type == :empty
-
-    NEIGHBORS.each do |neighbor| # Spaces above, below, left, and right of the current space.
-      x = neighbor[0] + space.x
-      y = neighbor[1] + space.y
-
-      if x >= 0 && y >= 0 && x < @size && y < @size # Then it's on the board
-        check_space = @board[y][x]
+    same = []
+    other = []
+    group = Group.new(type)
+    group.members.push(space)
+    each_neighbor(space) do |neighbor|
+      if neighbor.type == type
+        same.push(neighbor.group)
+        group.add(neighbor.group)
+      else
+        group.boarder_mems.push(neighbor) unless group.boarder_mems.include?(neighbor)
+        unless neighbor.type == :empty
+          other.push(neighbor.group)
+          group.boarder_grps.push(neighbor.group) unless group.boarder_grps.include?(neighbor.group)
+        end
       end
     end
+    capture = false
+    other.each do |other_grp|
+      other_grp.check_liberties
+      if other_grp.liberties == 0
+        capture = true
+        other_grp.type = :empty
+      end
+    end
+    unless capture
+      group.check_liberties
+      if group.liberties == 0
+        puts "Scuicide!"
+        return nil
+      end
+    end
+    same.each do |same_grp|
+      purge(same_grp)
+    end
+    attach(group)
   end
 
-  # Removes all connections this group has to spaces, neighboring groups and @groups.
+  # Removes all references in the group's spaces, neighboring groups and @groups.
   def purge group
     @groups.delete(group)
     group.boarder_grps.each do |b_grp|
@@ -103,7 +134,7 @@ class Board
     end
   end
 
-  # Connects this group to its spaces, neighboring groups and @groups.
+  # Adds references to the group's spaces, neighboring groups and @groups.
   def attach group
     @groups.push(group) unless @groups.include?(group)
     group.boarder_grps.each do |b_grp|
@@ -142,7 +173,7 @@ class Group
     @status = nil # for Terrotiry - can belong to black, white, or contested.
   end
 
-  def add group
+  def add_grp group
     @members.concat(group.members).uniq!
     @boarder_mems.concat(group.boarder_mems).uniq!
     @boarder_grps.concat(group.boarder_grps).uniq!

@@ -37,6 +37,7 @@ class Game
         end
       end
       # Kills same color groups in atari! Re-vamping grouper may be more efficient than patching a fix.
+=begin
       piece = @brd.board[y][x]
       piece.type = @plr[:colr]
       @brd.board_grouper
@@ -61,6 +62,8 @@ class Game
           @plr[:captures] += 1
         end
       end
+=end
+      @brd.add_piece(@brd.board[y][x], @plr[:colr])
       toggle_plr()
     end
   end
