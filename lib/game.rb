@@ -39,11 +39,11 @@ class Game
       # Kills same color groups in atari! Re-vamping grouper may be more efficient than patching a fix.
       piece = @brd.board[y][x]
       piece.type = @plr[:colr]
-      @brd.grouper
+      @brd.board_grouper
       check_groups = @brd.groups
       check_groups.delete(piece.group)
       check_groups.each do |group|
-        if group.class == PieceGroup
+        if group.type != :empty
           group.check_liberties
           if group.liberties == 0
             group.members.each do |member|
@@ -55,7 +55,7 @@ class Game
       end
 
       piece.group.check_liberties
-      if piece.group.liberties == 0
+      if piece.group.liberties == 0 && !piece.group.type == :empty
         piece.group.members.each do |member|
           member.type = :empty
           @plr[:captures] += 1
