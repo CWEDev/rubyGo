@@ -90,7 +90,9 @@ class Board
     other = []
     group = Group.new(type)
     group.members.push(space)
+    space.type = type
     each_neighbor(space) do |neighbor|
+      # binding.pry
       if neighbor.type == type
         same.push(neighbor.group)
         group.add(neighbor.group)
@@ -114,6 +116,7 @@ class Board
       group.check_liberties
       if group.liberties == 0
         puts "Scuicide!"
+        space.type = :empty
         return nil
       end
     end
@@ -173,7 +176,7 @@ class Group
     @status = nil # for Terrotiry - can belong to black, white, or contested.
   end
 
-  def add_grp group
+  def add group
     @members.concat(group.members).uniq!
     @boarder_mems.concat(group.boarder_mems).uniq!
     @boarder_grps.concat(group.boarder_grps).uniq!
