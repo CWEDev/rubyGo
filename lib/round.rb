@@ -15,6 +15,8 @@ class Board
     @size = size
     @board = []
     @groups = []
+    @atari = nil
+    @ko = false
 
     size.times do
       @board.push([])
@@ -30,11 +32,9 @@ class Board
   
   def board_grouper
     @assigned = []
-    @board.each do |row|
-      row.each do |space|
-        unless @assigned.include?(space)
-          space_grouper(space, false)
-        end
+    loop_board() do
+      unless @assigned.include?(space)
+        space_grouper(space, false)
       end
     end
   end
@@ -46,28 +46,35 @@ class Board
     attach(group)
   end
 
-  # Recursive, called by grouper methods to assign all neighboring spaces of identical
-  # type to that space's group. If a neighboring space isn't part of the group,
-  # it's added to the group's boarder_mems array.
-  # Previously unassigned groups are similarily added to boarder_grps.
+  # Recursive, expands group starting with space
   def grouper_crawler (space, group)
     @assigned.push(space)
     group.members.push(space)
 
     each_neighbor(space) do |neighbor|
-      if neighbor.type == space.type # Then it's part of our group
+
+      # Call self on neighbor if same type
+      if neighbor.type == space.type
         unless @assigned.include?(neighbor)
           grouper_crawler(neighbor, group)
         end
-
-      elsif !group.boarder_mems.include?(neighbor) # Then it's part of our group's boarder.
+      
+      # Otherwise, add neighbor to boarder_mems
+      elsif !group.boarder_mems.include?(neighbor)
         group.boarder_mems.push(neighbor)
 
-        # Does the boarder space have a group,
-        # and is that group not yet in our group's boarder_grps?
+        # And the neighbor's group to boarder_grps
         if neighbor.group && !group.boarder_grps.include?(neighbor.group)
           group.boarder_grps.push(neighbor.group)
         end
+      end
+    end
+  end
+
+  def loop_board
+    @board.each do |row|
+      row.each do |space|
+        yield space
       end
     end
   end
@@ -84,50 +91,82 @@ class Board
     end
   end
 
+  # Main method for adding new pieces to the board.
+  # Manages re-grouping of neighbors, capture logic, and suicide detection.
   def add_piece (space, type)
-    return nil unless space.type == :empty
-    same = []
-    other = []
+
+    return nil unless space.type == :empty # You can only place pieces on empty spaces.
+
+    same = [] # Storage for same-color neighboring groups.
+    other = [] # Storage for other-color nieghboring groups.
+    @atari = [] # Atari list is reset each turn.
+
+    # First, create a new group containing space.
     group = Group.new(type)
     group.members.push(space)
-    space.type = type
-    each_neighbor(space) do |neighbor|
-      # binding.pry
+
+
+    # Next, examine neighbors.
+    each_neighbor(space) do |neighbor| # 
+
+      # Merge neighboring group with self if same type.
       if neighbor.type == type
         same.push(neighbor.group)
-        group.add(neighbor.group)
+        group.merge(neighbor.group)
       else
+
+        # Add neighbor to boarder_mems if not already there (due to previous merging)
         group.boarder_mems.push(neighbor) unless group.boarder_mems.include?(neighbor)
+
+        # Do the same for it's group if other-color (territory isn't grouped until scoring)
         unless neighbor.type == :empty
           other.push(neighbor.group)
           group.boarder_grps.push(neighbor.group) unless group.boarder_grps.include?(neighbor.group)
         end
       end
     end
+
+    # Capture any eligible neighboring groups, update @atari if needed.
     capture = false
     other.each do |other_grp|
-      other_grp.check_liberties
-      if other_grp.liberties == 0
+      liberties = other_grp.get_liberties
+      binding.pry
+      if liberties.empty?
+        capture!(other_grp)
+        binding.pry
         capture = true
-        other_grp.type = :empty
+      elsif liberties.length == 1
+        @atari.push(liberties[0])
       end
     end
-    unless capture
-      group.check_liberties
-      if group.liberties == 0
-        puts "Scuicide!"
-        space.type = :empty
-        return nil
-      end
+
+    # If none were captured, check self for capture. Abort if true!
+    # Otherwise, update @atari if needed.
+    liberties = group.get_liberties
+    if capture == false && liberties.empty?
+      puts "Scuicide!"
+      @atari = []
+      return "Scuicide!"
+    elsif liberties.length == 1
+      @atari.push(liberties[0])
     end
+
+    # Self is uncaptured, move approved.
+    # Detach any meged sub-groups from the board and replace with self.
+    space.type = type
     same.each do |same_grp|
-      purge(same_grp)
+      detach(same_grp)
     end
     attach(group)
   end
 
+  def capture! group
+    group.type = :empty
+    detach(group)
+  end
+
   # Removes all references in the group's spaces, neighboring groups and @groups.
-  def purge group
+  def detach group
     @groups.delete(group)
     group.boarder_grps.each do |b_grp|
       b_grp.boarder_grps.delete(group)
@@ -136,6 +175,7 @@ class Board
       member.group = nil
     end
   end
+
 
   # Adds references to the group's spaces, neighboring groups and @groups.
   def attach group
@@ -148,6 +188,8 @@ class Board
     end
   end
 end
+
+
 
 # Space and Group types are :empty, :blk, or :wht
 class Space
@@ -162,6 +204,8 @@ class Space
   end
 end
 
+
+
 class Group
   attr_accessor :members, :boarder_mems, :boarder_grps, :liberties, :eyes, :status
   attr_reader :type
@@ -171,12 +215,12 @@ class Group
     @boarder_mems = []
     @boarder_grps = []
     @type = type
-    @liberties = 0
+    @liberties = []
     @eyes = 0
-    @status = nil # for Terrotiry - can belong to black, white, or contested.
+    @status = nil # for Terrotiry
   end
 
-  def add group
+  def merge group
     @members.concat(group.members).uniq!
     @boarder_mems.concat(group.boarder_mems).uniq!
     @boarder_grps.concat(group.boarder_grps).uniq!
@@ -190,6 +234,16 @@ class Group
     end
   end
 
+  # check_liberties variant that returns liberties.
+  def get_liberties
+    liberties = []
+    @boarder_mems.each do |mem|
+      liberties.push(mem) if mem.type == :empty
+    end
+    @liberties = liberties.length
+    return liberties
+  end
+
   def type=(type)
     @type = type
     @members.each do |mem|
@@ -197,6 +251,8 @@ class Group
     end
   end
 end
+
+
 
 class SudoGroup < Group
   attr_accessor :groups
