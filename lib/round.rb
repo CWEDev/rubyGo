@@ -101,10 +101,10 @@ class Board
     other = [] # Storage for other-color nieghboring groups.
     @atari = [] # Atari list is reset each turn.
 
-    # First, create a new group containing space.
+    # First, create a new group containing space. Temporarily add type.
     group = Group.new(type)
     group.members.push(space)
-
+    space.type = type
 
     # Next, examine neighbors.
     each_neighbor(space) do |neighbor| # 
@@ -130,10 +130,10 @@ class Board
     capture = false
     other.each do |other_grp|
       liberties = other_grp.get_liberties
-      binding.pry
+      # binding.pry
       if liberties.empty?
         capture!(other_grp)
-        binding.pry
+        # binding.pry
         capture = true
       elsif liberties.length == 1
         @atari.push(liberties[0])
@@ -144,8 +144,9 @@ class Board
     # Otherwise, update @atari if needed.
     liberties = group.get_liberties
     if capture == false && liberties.empty?
-      puts "Scuicide!"
       @atari = []
+      space.type = :empty
+      puts "Scuicide!"
       return "Scuicide!"
     elsif liberties.length == 1
       @atari.push(liberties[0])
