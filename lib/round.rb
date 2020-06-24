@@ -15,7 +15,7 @@ class Board
     @size = size
     @board = []
     @groups = []
-    @history = [] # Saves a history of previous board states containing ataris (for ko)
+    @history = [] # Saves a history of previous board states containing ataris or captures (for ko)
     @ataris = []
 
     @size.times do
@@ -29,7 +29,8 @@ class Board
     end
   end
 
-  # Creates a copy of the board state with space type only for storage and comparison.
+  # Creates a reference of the board state for storage and comparison.
+  # Only stores the type of each space.
   def make_ref
     board_ref = []
     @size.times do
@@ -178,7 +179,7 @@ class Board
 
     # Move approved.
     @ataris.push(liberties[0]) if liberties.length == 1
-    @history.push(board_state) unless @ataris.empty?
+    @history.push(board_state) unless @ataris.empty? || @history.include?(board_state)
     same.each do |same_grp|
       detach(same_grp)
     end
@@ -213,6 +214,15 @@ class Board
       member.group = group
     end
   end
+
+  def pseudo_grouper # In Progress...
+    groups_w_pseudo = []
+    @groups.each do |group|
+      group.boarder_grps.each do |boarder_grp|
+        shared_libs = 0
+      end
+
+    end
 end
 
 
@@ -233,7 +243,7 @@ end
 
 
 class Group
-  attr_accessor :members, :boarder_mems, :boarder_grps, :liberties, :eyes, :status
+  attr_accessor :members, :boarder_mems, :boarder_grps, :liberties, :eyes, :status, :parent
   attr_reader :type
 
   def initialize type
@@ -243,7 +253,9 @@ class Group
     @type = type
     @liberties = []
     @eyes = 0
-    @status = nil # for Terrotiry
+    @parent = nil
+    @chldren = []
+    @status = nil
   end
 
   def merge group
@@ -276,10 +288,4 @@ class Group
       mem.type = type
     end
   end
-end
-
-
-
-class SudoGroup < Group
-  attr_accessor :groups
 end

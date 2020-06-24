@@ -31,8 +31,6 @@ class Game
         x = gets.chomp.downcase
         y = (x.slice!(0).codepoints[0] - 97)
         x = x.to_i - 1
-        p y
-        p x
         if x >= 0 && x < @brd.size && y >= 0 && y < @brd.size
           satisfied = true
         else
