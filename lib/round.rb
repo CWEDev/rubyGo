@@ -5,7 +5,7 @@ require "./ai"
 
 class Board
   include DrawMethods
-  attr_accessor :board, :groups
+  attr_accessor :board, :groups, :history
   attr_reader :size
   NEIGHBORS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 
@@ -15,24 +15,35 @@ class Board
     @size = size
     @board = []
     @groups = []
-    @atari = nil
-    @ko = false
+    @history = [] # Saves a history of previous board states containing ataris (for ko)
+    @ataris = []
 
-    size.times do
+    @size.times do
       @board.push([])
     end
 
     board.each_with_index do |row, index|
-      size.times do
+      @size.times do
         @board[index].push(Space.new(:empty, row.length, index))
       end
     end
   end
 
+  # Creates a copy of the board state with space type only for storage and comparison.
+  def make_ref
+    board_ref = []
+    @size.times do
+      board_ref.push([])
+    end
+    loop_board() do |space|
+      board_ref[space.y][space.x] = space.type
+    end
+    return board_ref
+  end
   
   def board_grouper
     @assigned = []
-    loop_board() do
+    loop_board() do |space|
       unless @assigned.include?(space)
         space_grouper(space, false)
       end
@@ -91,15 +102,19 @@ class Board
     end
   end
 
+
+
   # Main method for adding new pieces to the board.
-  # Manages re-grouping of neighbors, capture logic, and suicide detection.
+  # Manages re-grouping of neighbors, capture logic, and suicide/ko detection.
+  # Stores ataris internally, returns capture count.
   def add_piece (space, type)
 
-    return nil unless space.type == :empty # You can only place pieces on empty spaces.
+    return :full unless space.type == :empty # You can only place pieces on empty spaces.
 
-    same = [] # Storage for same-color neighboring groups.
-    other = [] # Storage for other-color nieghboring groups.
-    @atari = [] # Atari list is reset each turn.
+    same = []
+    other = []
+    @ataris = []
+    captures = 0
 
     # First, create a new group containing space. Temporarily add type.
     group = Group.new(type)
@@ -126,65 +141,75 @@ class Board
       end
     end
 
-    # Capture any eligible neighboring groups, update @atari if needed.
-    capture = false
+    # Capture any eligible neighboring groups
+    captures = []
+    @ataris = []
     other.each do |other_grp|
       liberties = other_grp.get_liberties
-      # binding.pry
       if liberties.empty?
-        capture!(other_grp)
-        # binding.pry
-        capture = true
+        captures.push(other_grp)
+        detach(other_grp)
       elsif liberties.length == 1
-        @atari.push(liberties[0])
+        @ataris.push(liberties[0])
       end
     end
 
-    # If none were captured, check self for capture. Abort if true!
-    # Otherwise, update @atari if needed.
+    
     liberties = group.get_liberties
-    if capture == false && liberties.empty?
-      @atari = []
-      space.type = :empty
-      puts "Scuicide!"
-      return "Scuicide!"
-    elsif liberties.length == 1
-      @atari.push(liberties[0])
+    board_state = make_ref()
+
+    # Check self for suicide or illegal ko state,
+    # abort and return condition if true.
+    if captures.empty?
+      if liberties.empty?
+        space.type = :empty
+        return :suicide
+      end
+    else
+      if @history.include?(board_state)
+        space.type = :empty
+        captures.each do |group|
+          attach(group)
+        end
+        return :ko
+      end
+      @history.push(board_state)
     end
 
-    # Self is uncaptured, move approved.
-    # Detach any meged sub-groups from the board and replace with self.
-    space.type = type
+    # Move approved.
+    @ataris.push(liberties[0]) if liberties.length == 1
+    @history.push(board_state) unless @ataris.empty?
     same.each do |same_grp|
       detach(same_grp)
     end
     attach(group)
-  end
 
-  def capture! group
-    group.type = :empty
-    detach(group)
+    return @ataris
   end
 
   # Removes all references in the group's spaces, neighboring groups and @groups.
+  # Sets group members to empty.
   def detach group
     @groups.delete(group)
     group.boarder_grps.each do |b_grp|
       b_grp.boarder_grps.delete(group)
     end
     group.members.each do |member|
+      member.type = :empty
       member.group = nil
     end
   end
 
 
   # Adds references to the group's spaces, neighboring groups and @groups.
+  # Makes sure members comform to group type.
   def attach group
     @groups.push(group) unless @groups.include?(group)
     group.boarder_grps.each do |b_grp|
       b_grp.boarder_grps.push(group) unless b_grp.boarder_grps.include?(group)
     end
     group.members.each do |member|
+      member.type = group.type
       member.group = group
     end
   end

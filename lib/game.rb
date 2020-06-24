@@ -16,9 +16,12 @@ class Game
   def play_loop
     @plr = @wht
     game_on = true
+    result = ""
 
     while game_on == true
       @brd.prints(@brd.draw_board(@brd.board))
+      print result
+      print "\n"
       puts "\nWhite's Captures: #{@wht[:captures]}"
       puts "Black's's Captures: #{@blk[:captures]}"
       puts "\nEnter a Row-Letter followed by a Column-Number"
@@ -63,7 +66,7 @@ class Game
         end
       end
 =end
-      @brd.add_piece(@brd.board[y][x], @plr[:colr])
+      result = @brd.add_piece(@brd.board[y][x], @plr[:colr])
       toggle_plr()
     end
   end
@@ -81,6 +84,7 @@ end
 # All code below is dedicated to testing.
 
 game = Game.new
+boardtest = Board.new(19)
 game.new_game
 game.play_loop
 =begin
