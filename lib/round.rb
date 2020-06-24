@@ -113,10 +113,8 @@ class Board
 
     same = []
     other = []
-    @ataris = []
-    captures = 0
 
-    # First, create a new group containing space. Temporarily add type.
+    # First, create a new Stones group containing space. Temporarily add type.
     group = Stones.new(type)
     group.members.push(space)
     space.type = type
@@ -141,9 +139,10 @@ class Board
       end
     end
 
-    # Capture any eligible neighboring groups
     captures = []
     @ataris = []
+
+    # Capture any eligible neighboring groups
     other.each do |other_grp|
       liberties = other_grp.get_liberties
       if liberties.empty?
@@ -179,12 +178,18 @@ class Board
     # Move approved.
     @ataris.push(liberties[0]) if liberties.length == 1
     @history.push(board_state) unless @ataris.empty? || @history.include?(board_state)
+
+    cap_stones = 0
+    captures.each do |other_grp|
+      cap_stones += other_grp.members.length
+    end
+
     same.each do |same_grp|
       detach(same_grp)
     end
     attach(group)
 
-    return @ataris
+    return cap_stones
   end
 
   # Removes all references in the group's spaces, neighboring groups and @groups.
