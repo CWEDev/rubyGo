@@ -15,6 +15,7 @@ class Board
     @size = size
     @board = []
     @groups = []
+    @territory = []
     @history = [] # Saves a history of previous board states containing ataris or captures (for ko)
     @ataris = []
 
@@ -45,15 +46,13 @@ class Board
   def board_grouper
     @assigned = []
     loop_board() do |space|
-      unless @assigned.include?(space)
-        space_grouper(space, false)
-      end
+      grouper(space, false) unless @assigned.include?(space)
     end
   end
 
-  def space_grouper(space, clear = true)
+  def grouper(space, clear = true)
     @assigned = [] unless clear == false
-    group = Group.new(space.type)
+    space.type == :empty ? group = Territory.new : group = Stones.new(space.type)
     grouper_crawler(space, group)
     attach(group)
   end
@@ -118,7 +117,7 @@ class Board
     captures = 0
 
     # First, create a new group containing space. Temporarily add type.
-    group = Group.new(type)
+    group = Stones.new(type)
     group.members.push(space)
     space.type = type
 
@@ -215,14 +214,25 @@ class Board
     end
   end
 
-  def pseudo_grouper # In Progress...
-    groups_w_pseudo = []
+  # Play CANNOT CONTINUE after building pseudo-groups. Used for scoring only.
+  def build_pseudo
     @groups.each do |group|
+      have_parent = !group.parent.nil?
+      your_libs = group.get_liberties
       group.boarder_grps.each do |boarder_grp|
+        break if have_parent && group.parent == boarder_grp.parent
         shared_libs = 0
+        their_libs = boarder_grp.get_liberties
+        their_libs.each do |lib|
+          shared_libs += 1 if your_libs.include?(lib)
+        end
+        if shared_libs >= 2
+          group.parent = Pseudo.new(group.type, group) unless have_parent
+          group.parent.merge(boarder_grp)
+        end
       end
-
     end
+  end
 end
 
 
@@ -243,7 +253,7 @@ end
 
 
 class Group
-  attr_accessor :members, :boarder_mems, :boarder_grps, :liberties, :eyes, :status, :parent
+  attr_accessor :members, :boarder_mems, :boarder_grps
   attr_reader :type
 
   def initialize type
@@ -251,11 +261,6 @@ class Group
     @boarder_mems = []
     @boarder_grps = []
     @type = type
-    @liberties = []
-    @eyes = 0
-    @parent = nil
-    @chldren = []
-    @status = nil
   end
 
   def merge group
@@ -263,6 +268,38 @@ class Group
     @boarder_mems.concat(group.boarder_mems).uniq!
     @boarder_grps.concat(group.boarder_grps).uniq!
     @boarder_mems -= @members
+  end
+
+  def type=(type)
+    @type = type
+    @members.each do |mem|
+      mem.type = type
+    end
+  end
+end
+
+class Territory < Group
+  attr_accessor :status
+
+  def initialize
+    super :empty
+    @status = nil
+  end
+end
+
+class Stones < Group
+  attr_accessor :liberties, :eyes, :parent
+
+  def initialize type
+    super type
+    @liberties = 0
+    @eyes = 0
+    @parent = nil
+  end
+
+  def merge group
+    super group
+    self.parent.update(group) unless self.parent.nil?
   end
 
   def check_liberties
@@ -281,11 +318,36 @@ class Group
     @liberties = liberties.length
     return liberties
   end
+end
 
-  def type=(type)
-    @type = type
-    @members.each do |mem|
-      mem.type = type
+class Pseudo < Stones
+  def initialize(type, group)
+    super type
+    merge(group)
+    @children = []
+  end
+
+  def merge group
+    other_pseudo = group.parent
+    return if other_pseudo == self
+    if other_pseudo
+      other_pseudo.children.each do |child|
+        child.parent = nil
+        merge(child)
+      end
+    else
+      super group
+      group.parent = self
+      @children.push(group)
     end
+  end
+
+  def update group
+    return unless @children.include?(group)
+    @members -= group.members
+    @boarder_mems -= group.boarder_mems
+    @boarder_grps -= group.boarder_grps
+    group.parent = nil
+    merge(group)
   end
 end
