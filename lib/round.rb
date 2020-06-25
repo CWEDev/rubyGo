@@ -43,10 +43,15 @@ class Board
     return board_ref
   end
   
-  def board_grouper
+  # Allows you to run the grouper algorithm for each space on the board,
+  # Grouping all spaces of included types.
+  # (For AI, testing, and territory grouping during scoring.)
+  def board_grouper *types
     @assigned = []
     loop_board() do |space|
-      grouper(space, false) unless @assigned.include?(space)
+      unless @assigned.include?(space) || !types.include?(space.type)
+        grouper(space, false) 
+      end
     end
   end
 
@@ -120,7 +125,7 @@ class Board
     space.type = type
 
     # Next, examine neighbors.
-    each_neighbor(space) do |neighbor| # 
+    each_neighbor(space) do |neighbor|
 
       # Merge neighboring group with self if same type.
       if neighbor.type == type
@@ -206,7 +211,7 @@ class Board
   end
 
 
-  # Adds references to the group's spaces, neighboring groups and @groups.
+  # Adds references to the group's spaces, neighboring groups and @groups/@territory.
   # Makes sure members comform to group type.
   def attach group
     @groups.push(group) unless @groups.include?(group)
@@ -224,16 +229,27 @@ class Board
     @groups.each do |group|
       have_parent = !group.parent.nil?
       your_libs = group.get_liberties
-      group.boarder_grps.each do |boarder_grp|
-        break if have_parent && group.parent == boarder_grp.parent
+
+      neighbor_grps = []
+      your_libs.each do |lib|
+        each_neighbor(lib) do |neighbor|
+          if neighbor.type == group.type &&
+            group != neighbor.group &&
+            !neighbor_grps.include?(neighbor.group)
+            neighbor_grps.push(neighbor.group)
+          end
+        end
+      end
+      neighbor_grps.each do |neighbor_grp|
+        break if have_parent && group.parent == neighbor_grp.parent
         shared_libs = 0
-        their_libs = boarder_grp.get_liberties
+        their_libs = neighbor_grp.get_liberties
         their_libs.each do |lib|
           shared_libs += 1 if your_libs.include?(lib)
         end
         if shared_libs >= 2
           group.parent = Pseudo.new(group.type, group) unless have_parent
-          group.parent.merge(boarder_grp)
+          group.parent.merge(neighbor_grp)
         end
       end
     end
@@ -326,10 +342,11 @@ class Stones < Group
 end
 
 class Pseudo < Stones
+  attr_accessor :children
   def initialize(type, group)
     super type
-    merge(group)
     @children = []
+    merge(group)
   end
 
   def merge group

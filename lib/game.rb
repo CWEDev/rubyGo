@@ -80,7 +80,7 @@ class Game
 end
 
 # All code below is dedicated to testing.
-
+=begin
 game = Game.new
 boardtest = Board.new(19)
 game.new_game
@@ -124,3 +124,35 @@ test_board.groups.each do |group|
   end
 end
 =end
+
+testboard = Board.new(9)
+=begin
+testboard.board[0][1].type = DrawMethods::BLK
+testboard.board[1][1].type = DrawMethods::BLK
+testboard.board[2][0].type = DrawMethods::BLK
+testboard.board[2][2].type = DrawMethods::BLK
+testboard.board[3][3].type = DrawMethods::BLK
+testboard.board[3][1].type = DrawMethods::BLK
+testboard.board[4][3].type = DrawMethods::BLK
+testboard.board[4][2].type = DrawMethods::BLK
+testboard.board[4][1].type = DrawMethods::BLK
+testboard.board[4][0].type = DrawMethods::BLK
+=end
+16.times do
+  testboard.board[Random.rand(9)][Random.rand(9)].type = DrawMethods::BLK
+end
+testboard.board_grouper(DrawMethods::BLK)
+testboard.build_pseudo
+puts testboard.draw_board(testboard.board)
+testboard.groups.each do |group|
+  puts group.type
+  group.members.each do |member|
+    puts "#{member.x} #{member.y}"
+  end
+  if group.parent
+    puts "Parent: #{group.parent}"
+    puts "Parent size: #{group.parent.members.length}"
+  else
+    puts "No Parent"
+  end
+end
