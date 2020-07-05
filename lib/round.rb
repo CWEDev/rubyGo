@@ -247,7 +247,7 @@ class Board
         their_libs.each do |lib|
           shared_libs += 1 if your_libs.include?(lib)
         end
-        if shared_libs >= 2
+        if shared_libs >= 1 # Cheap workaround, will have issues reading cuts. Should be 2+.
           group.parent = Pseudo.new(group.type, group) unless have_parent
           group.parent.merge(neighbor_grp)
         end
@@ -276,6 +276,15 @@ end
 class Group
   attr_accessor :members, :boarder_mems, :boarder_grps
   attr_reader :type
+  CONTESTED_SHAPES = [
+    [[0, 0], [0, 1], [0, 2]],
+    [[0, 0], [1, 0], [2, 0]],
+    [[0, 0], [0, 1], [1, 0]],
+    [[0, 0], [0, 1], [1, 1]],
+    [[0, 0], [1, 0], [1, 1]],
+    [[0, 1], [1, 0], [1, 1]],
+    
+  ]
 
   def initialize type
     @members = []
@@ -297,6 +306,22 @@ class Group
       mem.type = type
     end
   end
+
+  def get_shape
+    min_x = 18
+    min_y = 18
+    @members.each do |mem|
+      mem.x = min_x if mem.x < min_x
+      mem.y = min_y if mem.y < min_y
+    end
+    shape_cords = []
+    @members.each do |mem|
+      shape_cords.push([(mem.x - min_x), (mem.y - min_y)])
+    end
+    return shape_cords
+  end
+
+
 end
 
 class Territory < Group
